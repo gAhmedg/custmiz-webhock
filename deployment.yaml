@@ -1,0 +1,54 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: webhook-listener
+spec:
+  replicas: 1  # Number of pods to run
+  selector:
+    matchLabels:
+      app: webhook-listener
+  template:
+    metadata:
+      labels:
+        app: webhook-listener
+    spec:
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: kubernetes.io/hostname  # Node label key
+                operator: In
+                values:
+                - test0ports-worker2   # Replace with the actual node name
+      containers:
+      - name: webhook-listener
+        image: algn48/webhook-listener:custmiz2
+        env:
+        - name: REPO_DIR
+          value: "custmiz"  # folder in pod mounted in node
+        - name: REPO_URL
+          value: "https://github.com/gAhmedg/test2.git"
+        ports:
+        - containerPort: 8000
+        volumeMounts:
+        - mountPath: /custmiz     # Path inside the container where the files will be saved (REPO_DIR)
+          name: host-volume     # Name of the volume
+      volumes:
+      - name: host-volume
+        hostPath:
+          path: /test-cus          # Path on the node where the files will be created
+          type: DirectoryOrCreate  # Ensure the directory is created if it doesn't exist
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: webhook-listener-service
+spec:
+  selector:
+    app: webhook-listener
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 8000  # Port where your app is running
+  type: ClusterIP  # You can change this to NodePort if you want external access
